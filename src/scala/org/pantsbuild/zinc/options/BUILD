@@ -9,5 +9,8 @@ scala_library(
     publication_metadata=pants_library('The SBT incremental compiler for nailgun')
   ),
   strict_deps=True,
+  dependencies=[
+      '3rdparty/jvm/org/scala-lang:scala-compiler',
+  ],
   platform='java8',
 )
