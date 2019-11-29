@@ -237,6 +237,18 @@ class ExportTest(ConsoleTaskTestBase):
       target_type=JvmTarget,
     )
 
+    self.make_target(
+      'strict_deps:enabled',
+      target_type=JvmTarget,
+      strict_deps=True
+    )
+
+    self.make_target(
+      'strict_deps:disabled',
+      target_type=JvmTarget,
+      strict_deps=False
+    )
+
     self.add_to_build_file('src/python/x/BUILD', """
        python_library(name="x", sources=globs("*.py"))
     """.strip())
@@ -358,6 +370,12 @@ class ExportTest(ConsoleTaskTestBase):
     scala_jars = scala_platform['compiler_classpath']
     self.assertTrue(any('2.12' in jar_path for jar_path in scala_jars))
 
+  def test_strict_deps(self):
+    enabled_result = self.execute_export_json('strict_deps:enabled')['targets']['strict_deps:enabled']
+    disabled_result = self.execute_export_json('strict_deps:disabled')['targets']['strict_deps:disabled']
+    self.assertTrue(enabled_result['strict_deps'])
+    self.assertFalse(disabled_result['strict_deps'])
+
   def test_sources(self):
     self.set_options(sources=True)
     result = self.execute_export_json('project_info:third')
@@ -418,6 +436,7 @@ class ExportTest(ConsoleTaskTestBase):
          },
       ],
       'scope' : 'default',
+      'strict_deps' : False,
       'target_type': 'SOURCE',
       'transitive' : True,
       'pants_target_type': 'scala_library',

@@ -276,6 +276,12 @@ class ExportTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixin):
 
       if classpath_products:
         info['libraries'] = [self._jar_id(lib) for lib in target_libraries]
+
+      strict_deps = False
+      if hasattr(current_target, 'strict_deps'):
+        strict_deps = True == getattr(current_target, 'strict_deps')
+      info['strict_deps'] = strict_deps
+
       targets_map[current_target.address.spec] = info
 
     for target in targets:
