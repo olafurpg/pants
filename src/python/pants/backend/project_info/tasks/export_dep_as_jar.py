@@ -525,13 +525,7 @@ class ExportDepAsJar(ConsoleTask):
             return FrozenOrderedSet(aggregated_entries)
 
         def insert_entry_for_target(target: Target) -> None:
-            # Compile dependencies take into account strict_deps...
-            if self._is_strict_deps(target):
-                compile_dependencies = target.strict_dependencies(
-                    DependencyContext.global_instance()
-                )
-            else:
-                compile_dependencies = target.dependencies
+            compile_dependencies = target.strict_dependencies(DependencyContext.global_instance())
             non_modulizable_compile_deps = [
                 dep for dep in compile_dependencies if dep not in modulizable_targets
             ]
