@@ -13,9 +13,9 @@ scala_library(
   dependencies=[
     'examples/src/scala/org/pantsbuild/example/scalac/plugin:simple_scalac_plugin'
   ],
-   scalac_plugins=['simple_scalac_plugin'],
-   scalac_plugin_args = {
-     'simple_scalac_plugin': ['args', 'from', 'target', 'local']
-   }
+  scalac_plugins=['simple_scalac_plugin'],
+  scalac_plugin_args = {
+    'simple_scalac_plugin': ['args', 'from', 'target', 'local']
+  }
 )
 

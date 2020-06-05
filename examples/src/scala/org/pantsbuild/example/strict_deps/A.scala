@@ -1,3 +1,5 @@
 package a
 
-class Foo
+class Foo {
+  val x: Int = ""
+}

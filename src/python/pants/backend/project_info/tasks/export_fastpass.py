@@ -190,7 +190,7 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
 
         return compile_classpath
 
-    def generate_targets_map(self, targets, classpath_products=None):
+    def generate_targets_map(self, targets, zinc_args_for_all_targets, classpath_products=None):
         """Generates a dictionary containing all pertinent information about the target graph.
 
         The return dictionary is suitable for serialization by json.dumps.
@@ -233,7 +233,8 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
                         return FastpassSourceRootTypes.RESOURCE
                     else:
                         return FastpassSourceRootTypes.SOURCE
-
+            
+            zinc_args_for_target = zinc_args_for_all_targets.get(current_target) or []
             info = {
                 "targets": [],
                 "libraries": [],
@@ -244,6 +245,13 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
                 "is_code_gen": current_target.is_synthetic,
                 "is_synthetic": current_target.is_synthetic,
                 "pants_target_type": self._get_pants_target_alias(type(current_target)),
+                "scalac_args": ExportFastpass._extract_arguments_with_prefix_from_zinc_args(
+                    zinc_args_for_target, "-S"
+                ),
+                "javac_args": ExportFastpass._extract_arguments_with_prefix_from_zinc_args(
+                    zinc_args_for_target, "-C"
+                ),
+                "extra_jvm_options": current_target.payload.get_field_value("extra_jvm_options", []),
             }
 
             if not current_target.is_synthetic:
@@ -315,7 +323,6 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
                 if hasattr(current_target, "runtime_platform"):
                     info["runtime_platform"] = current_target.runtime_platform.name
                 info["strict_deps"] = DependencyContext.global_instance().defaulted_property(target, "strict_deps") is True
-                print(f"EXPORTS: {current_target} {hasattr(current_target, 'export_specs')}")
                 if hasattr(current_target, "export_addresses"):
                   info["exports"] = [addr.spec for addr in current_target.export_addresses]
 
@@ -482,6 +489,10 @@ class ExportFastpass(ExportFastpassTask, ConsoleTask):  # type: ignore[misc]
 
     _register_console_transitivity_option = False
 
+    @staticmethod
+    def _extract_arguments_with_prefix_from_zinc_args(args, prefix: str):
+        return tuple([option[len(prefix) :] for option in args if option.startswith(prefix)])
+
     @classmethod
     def register_options(cls, register):
         super().register_options(register)
@@ -505,7 +516,12 @@ class ExportFastpass(ExportFastpassTask, ConsoleTask):  # type: ignore[misc]
         super().__init__(*args, **kwargs)
 
     def console_output(self, targets, classpath_products=None):
-        graph_info = self.generate_targets_map(targets, classpath_products=classpath_products)
+        zinc_args_for_all_targets = self.context.products.get_data("zinc_args")
+        if zinc_args_for_all_targets is None:
+            raise TaskError(
+                "There was an error compiling the targets - There there are no zinc argument entries"
+            )
+        graph_info = self.generate_targets_map(targets, zinc_args_for_all_targets, classpath_products=classpath_products)
         if self.get_options().formatted:
             return json.dumps(graph_info, indent=4, separators=(",", ": ")).splitlines()
         else:
