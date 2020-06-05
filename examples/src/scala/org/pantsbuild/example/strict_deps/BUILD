@@ -6,6 +6,7 @@ scala_library(
   sources = ["A.scala"],
 )
 
+
 scala_library(
   name = "b",
   sources = ["B.scala"],
@@ -17,11 +18,24 @@ scala_library(
   dependencies = [":a"],
 )
 
+java_library(
+  name = "c2",
+  sources = ["C2.java"],
+  dependencies = [":a"],
+)
+
 scala_library(
   name = "d",
   sources = ["D.scala"],
   dependencies = [":b", ":c"],
   strict_deps = True,
+)
+
+scala_library(
+  name = "d2",
+  sources = ["D2.scala"],
+  dependencies = [":a"],
+  exports = [":a"],
 )
 
 scala_library(

@@ -7,6 +7,7 @@ from collections import defaultdict
 
 from twitter.common.collections import OrderedSet
 
+from pants.backend.jvm.subsystems.dependency_context import DependencyContext
 from pants.backend.jvm.subsystems.jvm_platform import JvmPlatform
 from pants.backend.jvm.subsystems.resolve_subsystem import JvmResolveSubsystem
 from pants.backend.jvm.subsystems.scala_platform import ScalaPlatform
@@ -70,6 +71,7 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
             JvmPlatform,
             PythonInterpreterCache,
             ScalaPlatform,
+            DependencyContext
         )
 
     @staticmethod
@@ -130,6 +132,9 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
     @classmethod
     def prepare(cls, options, round_manager):
         super().prepare(options, round_manager)
+        round_manager.require_data("zinc_args")
+        round_manager.require_data("runtime_classpath")
+        round_manager.require_data("jvm_modulizable_targets")
         if options.libraries or options.libraries_sources or options.libraries_javadocs:
             round_manager.optional_data("java")
             round_manager.optional_data("scala")
@@ -309,6 +314,10 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
                 info["platform"] = current_target.platform.name
                 if hasattr(current_target, "runtime_platform"):
                     info["runtime_platform"] = current_target.runtime_platform.name
+                info["strict_deps"] = DependencyContext.global_instance().defaulted_property(target, "strict_deps") is True
+                print(f"EXPORTS: {current_target} {hasattr(current_target, 'export_specs')}")
+                if hasattr(current_target, "export_addresses"):
+                  info["exports"] = [addr.spec for addr in current_target.export_addresses]
 
             info["roots"] = [
                 {
