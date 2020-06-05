@@ -7,6 +7,7 @@ from collections import defaultdict
 
 from twitter.common.collections import OrderedSet
 
+from pants.base.exceptions import TargetDefinitionException
 from pants.backend.jvm.subsystems.dependency_context import DependencyContext
 from pants.backend.jvm.subsystems.jvm_platform import JvmPlatform
 from pants.backend.jvm.subsystems.resolve_subsystem import JvmResolveSubsystem
@@ -325,8 +326,11 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
                 if hasattr(current_target, "runtime_platform"):
                     info["runtime_platform"] = current_target.runtime_platform.name
                 info["strict_deps"] = DependencyContext.global_instance().defaulted_property(target, "strict_deps") is True
-                if hasattr(current_target, "export_addresses"):
-                  info["exports"] = [addr.spec for addr in current_target.export_addresses]
+                try:
+                    if hasattr(current_target, "export_addresses"):
+                        info["exports"] = [addr.spec for addr in current_target.export_addresses]
+                except:
+                    pass # ignore
 
             info["roots"] = [
                 {
