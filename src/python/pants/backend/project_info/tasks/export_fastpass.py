@@ -201,6 +201,8 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
         targets_map = {}
         resource_target_map = {}
         python_interpreter_targets_mapping = defaultdict(list)
+        jvm_modulizable_targets = self.context.products.get_data("jvm_modulizable_targets")
+        is_modulizable_target = set([id(target) for target in jvm_modulizable_targets])
 
         if self.get_options().libraries:
             # NB(gmalmquist): This supports mocking the classpath_products in tests.
@@ -261,7 +263,7 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
 
             info["transitive"] = current_target.transitive
             info["scope"] = str(current_target.scope)
-            info["is_target_root"] = current_target in target_roots_set
+            info["is_target_root"] = id(current_target) in is_modulizable_target
 
             if isinstance(current_target, PythonRequirementLibrary):
                 reqs = current_target.payload.get_field_value("requirements", set())
