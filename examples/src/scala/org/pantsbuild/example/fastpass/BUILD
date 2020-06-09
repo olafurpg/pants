@@ -24,6 +24,20 @@ java_library(
   dependencies = [":a"],
 )
 
+java_library(
+  name = "c3",
+  scope = "runtime",
+  sources = ["C3.java"],
+  dependencies = [":a"],
+)
+
+java_library(
+  name = "c4",
+  scope = "compile test",
+  sources = ["C4.java"],
+  dependencies = [":a"],
+)
+
 scala_library(
   name = "d",
   sources = ["D.scala"],
@@ -45,10 +59,29 @@ scala_library(
   strict_deps = False,
 )
 
+
 junit_tests(
   name = "f",
   sources = ["F.scala"],
   dependencies = [":e"],
   extra_jvm_options=["-disableassertions"],
   strict_deps = False,
+)
+
+scala_library(
+  name = "g_scala",
+  sources = ["G1.scala"],
+  java_sources = [":g_java"]
+)
+
+java_library(
+  name = "g_java",
+  sources = ["G2.java"],
+  dependencies = [":g_scala"]
+)
+
+jvm_binary(
+  name = "g_bin",
+  dependencies = [":g_java"],
+  main = "org.pantsbuild.example.fastpass.G2",
 )

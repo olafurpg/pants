@@ -191,7 +191,13 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
 
         return compile_classpath
 
-    def generate_targets_map(self, targets, zinc_args_for_all_targets, classpath_products=None):
+    def _export_classpath(self, targets, runtime_classpath):
+        basedir = os.path.join(self.get_options().pants_distdir, self._output_dir)
+        ClasspathProducts.create_canonical_classpath(
+            runtime_classpath, targets, basedir, save_classpath_file=True
+        )
+
+    def generate_targets_map(self, targets, zinc_args_for_all_targets, runtime_classpath, classpath_products=None):
         """Generates a dictionary containing all pertinent information about the target graph.
 
         The return dictionary is suitable for serialization by json.dumps.
@@ -204,6 +210,10 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
         python_interpreter_targets_mapping = defaultdict(list)
         jvm_modulizable_targets = self.context.products.get_data("jvm_modulizable_targets")
         is_modulizable_target = set([id(target) for target in jvm_modulizable_targets])
+        non_modulizable_targets = [t for t in targets if id(t) not in is_modulizable_target]
+
+        self._export_classpath(non_modulizable_targets, runtime_classpath)
+
 
         if self.get_options().libraries:
             # NB(gmalmquist): This supports mocking the classpath_products in tests.
@@ -314,8 +324,10 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
                     resource_target_map[dep] = current_target
 
             if isinstance(current_target, ScalaLibrary):
+                if current_target.java_sources:
+                    info["java_sources"] = []
                 for dep in current_target.java_sources:
-                    info["targets"].append(dep.address.spec)
+                    info["java_sources"].append(dep.address.spec)
                     process_target(dep)
 
             if isinstance(current_target, JvmTarget):
@@ -325,10 +337,14 @@ class ExportFastpassTask(ResolveRequirementsTaskBase, IvyTaskMixin, CoursierMixi
                 info["platform"] = current_target.platform.name
                 if hasattr(current_target, "runtime_platform"):
                     info["runtime_platform"] = current_target.runtime_platform.name
-                info["strict_deps"] = DependencyContext.global_instance().defaulted_property(target, "strict_deps") is True
+                strict_dependencies = DependencyContext.global_instance().defaulted_property(target, "strict_deps") is True
+                info["strict_deps"] = strict_dependencies
                 try:
-                    if hasattr(current_target, "export_addresses"):
-                        info["exports"] = [addr.spec for addr in current_target.export_addresses]
+                    info["exports"] = [addr.spec for addr in current_target.export_addresses]
+                except:
+                    pass # ignore
+                try:
+                    info["scope"] = current_target.scope.scope
                 except:
                     pass # ignore
 
@@ -518,6 +534,10 @@ class ExportFastpass(ExportFastpassTask, ConsoleTask):  # type: ignore[misc]
         # NB: `export` should always act transitively
         return self.get_options().transitive
 
+    @property
+    def _output_dir(self):
+        return self.options_scope.replace(".", os.sep)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -527,7 +547,16 @@ class ExportFastpass(ExportFastpassTask, ConsoleTask):  # type: ignore[misc]
             raise TaskError(
                 "There was an error compiling the targets - There there are no zinc argument entries"
             )
-        graph_info = self.generate_targets_map(targets, zinc_args_for_all_targets, classpath_products=classpath_products)
+
+        runtime_classpath = self.context.products.get_data("runtime_classpath")
+        if runtime_classpath is None:
+            raise TaskError(
+                "There was an error compiling the targets - There is no runtime classpath"
+            )
+
+        graph_info = self.generate_targets_map(targets, zinc_args_for_all_targets, runtime_classpath, classpath_products=classpath_products)
+
+
         if self.get_options().formatted:
             return json.dumps(graph_info, indent=4, separators=(",", ": ")).splitlines()
         else:
